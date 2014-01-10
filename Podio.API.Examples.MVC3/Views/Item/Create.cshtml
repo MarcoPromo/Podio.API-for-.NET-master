@@ -1,0 +1,21 @@
+﻿@using System.Web.Mvc.Html;
+@{
+    ViewBag.Title = "Item Create";
+}
+
+@{
+    var app = (Podio.API.Model.Application)Model;
+}
+
+<div class="page-header">
+    <h1>Create new @app.Config["item_name"]</h1>
+</div>
+
+
+<div class="well">
+    @using (Html.BeginForm("Create", "Item", new { app_id = app.AppId }, FormMethod.Post, new { enctype = "multipart/form-data" }))
+    {
+        @Html.Partial("_Form", (Podio.API.Model.Application)Model)
+        <button type="submit" class="btn btn-primary" value="Create">Create Item</button>
+    }
+</div>

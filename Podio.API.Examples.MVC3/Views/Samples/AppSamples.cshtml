@@ -1,0 +1,218 @@
+﻿@model Podio.API.Examples.MVC3.Models.PodioConnectionInfo
+@{
+    ViewBag.Title = "AppSamples";
+}
+<div class="page-header">
+    <h1>App samples</h1>
+</div>
+@{
+    var client = Model.GetClient();
+    // the ref id is App when we got authenticated as an APP
+    var items = client.ItemService.GetItems((int)Model.AuthorizationAccessToken.Ref.Id,100,0);
+    //var items = client.ItemService.FilterItems((int)Model.AuthorizationAccessToken.Ref.Id, 100, 0, new Dictionary<string,string> { { "title", "My Item Title"} });
+}
+
+@helper FieldValueTree(Dictionary<string, object> values) {
+    <ul>
+        @foreach(KeyValuePair<string, object> pair in values) {
+            <li>
+                @pair.Key
+                =
+                @if(pair.Value is Dictionary<string, object>) {
+                    @FieldValueTree((Dictionary<string, object>)pair.Value);
+                } else {
+                    @pair.Value
+                }
+            </li>
+        }
+    </ul>
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th style="width:100px;">Id</th>
+            <th style="width:150px;">Title</th>
+@*            <td>Task count</td>
+            <td>External Id</td>*@
+            <td>Fields</td>
+            <td>Actions</td>
+        </tr>
+        
+    </thead>
+    <tbody>
+    @foreach (var item in items.Items) {
+
+        <tr>
+            <td>@item.ItemId</td>
+            <td>@item.Title
+
+               @if ((item.TaskCount ?? 0) > 0) { 
+                <strong>Tasks</strong>    
+                    <ul>
+                        @foreach (var task in item.Tasks) { 
+                        <li>@task</li>
+                        }
+                    </ul>
+                }
+                @if ((item.References ?? new List<Podio.API.Model.Reference>()).Count > 0) { 
+                   <strong>References</strong>
+                    <ul>
+                        @foreach (var reference in item.References) { 
+                         <li>@reference</li>   
+                        }
+                    </ul>
+                }
+            </td>
+@*            <td>@item.TaskCount</td>
+            <td>@item.ExternalId</td>*@
+            <td>
+                <ul>
+                    @foreach (var field in item.Fields) { 
+                        <li>
+                            <b>@field.ExternalId (@field.Type)</b>
+
+                            @switch (field.Type) {
+                                case "text":
+                                    @(item.Field<Podio.API.Utils.ItemFields.TextItemField>(field.ExternalId).Value);
+                                   break;
+                                case "date":
+                                   var dateField = item.Field<Podio.API.Utils.ItemFields.DateItemField>(field.ExternalId);
+                                    <ul>
+                                        <li>Start: @(dateField.Start)</li>
+                                        <li>End: @(dateField.End)</li>
+                                        <li>StartDate: @(dateField.StartDate)</li>
+                                        <li>EndDate: @(dateField.EndDate)</li>
+                                        <li>StartTime: @(dateField.StartTime)</li>
+                                        <li>EndTime: @(dateField.EndTime)</li>
+                                    </ul>
+                                    break;
+                                case "embed":
+                                    var embeds = item.Field<Podio.API.Utils.ItemFields.EmbedItemField>(field.ExternalId).Embeds;
+                                    foreach (var embed in embeds)
+                                    {
+                                        if(embed.EmbedHtml != null) {
+                                            @Html.Raw(embed.EmbedHtml)
+                                        } else {
+                                            <a href="@embed.OriginalUrl">
+                                                @embed.Title
+                                                @if (embed.Files != null && embed.Files.Count > 0)
+                                                {
+                                                    <img src="@embed.Files.First().Link" />
+                                                }
+                                            </a>
+                                        }
+                                        
+                                    }
+                                    break;
+                                case "contact":
+                                    var contacts = item.Field<Podio.API.Utils.ItemFields.ContactItemField>(field.ExternalId).Contacts;
+                                    <ul>
+                                        @foreach (var contact in contacts)
+                                        {
+                                            <li>
+                                                @if (contact.Image != null) {
+                                                    <img src="@(contact.Image.As<Podio.API.Model.FileAttachment>().Link)" />   
+                                                }
+                                                <a href="@contact.Link">@contact.Name</a>
+                                                @if (contact.Mail != null)
+                                                {
+                                                    foreach (var mail in contact.Mail)
+	                                                {
+		                                                <a href="mailto:@mail">@mail</a>
+	                                                }
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                    break;    
+                                case "location": 
+                                    var locations = item.Field<Podio.API.Utils.ItemFields.LocationItemField>(field.ExternalId).Locations; 
+                                    <ul>
+                                        @foreach (var location in locations)
+                                        {
+                                            <li>@location</li>
+                                        }
+                                    </ul>
+                                    break;
+                                case "app":
+                                    var appItems = item.Field<Podio.API.Utils.ItemFields.AppItemField>(field.ExternalId).Items;
+                                    <ul>
+                                        @foreach (var appItem in appItems)
+                                        {
+                                            <li>
+                                                <a href="@appItem.Link">@appItem.Title</a> (<a href="@(appItem.App.As<Podio.API.Model.Application>().Link)">@(appItem.App.As<Podio.API.Model.Application>().Name)</a>)
+                                            </li>
+                                        }  
+                                    </ul>
+                                    break;
+                                case "category":
+                                    var answers = item.Field<Podio.API.Utils.ItemFields.CategoryItemField>(field.ExternalId).Answers;
+                                    foreach (var answer in answers)
+                                    {
+                                        <span style="background-color:#@answer.Color;">@answer.Text</span>
+                                    }  
+                                    break;
+                                case "question":
+                                    var qAnswers = item.Field<Podio.API.Utils.ItemFields.QuestionItemField>(field.ExternalId).Answers;
+                                    foreach (var answer in qAnswers)
+                                    {
+                                        <span style="background-color:#@answer.Color;">@answer.Text</span>
+                                    }  
+                                    break;   
+                                case "image":
+                                    var images = item.Field<Podio.API.Utils.ItemFields.ImageItemField>(field.ExternalId).Images;
+                                    foreach (var image in images)
+                                    {
+                                       <img src="@image.Link" />  
+                                    }
+                                    break;     
+                                case "money":  
+                                    var money = item.Field<Podio.API.Utils.ItemFields.MoneyItemField>(field.ExternalId);
+                                    <p>@money.Currency @money.Value</p>
+                                    break;                                                      
+                                case "duration":  
+                                    var duration = item.Field<Podio.API.Utils.ItemFields.DurationItemField>(field.ExternalId);
+                                    <p>@duration.Value</p>
+                                    break;
+                                case "progress":  
+                                    var progress = item.Field<Podio.API.Utils.ItemFields.ProgressItemField>(field.ExternalId);
+                                    <p>@progress.Value %</p>
+                                    break;
+                                case "calculation":
+                                    var calculation = item.Field<Podio.API.Utils.ItemFields.CalculationItemField>(field.ExternalId);
+                                    <p>@calculation.Value</p>
+                                    break;                                                                          
+                                case "state":
+                                    var state = item.Field<Podio.API.Utils.ItemFields.StateItemField>(field.ExternalId);
+                                    <p>@state.Value</p>
+                                    break;                                   default:
+                                    foreach (var value in field.Values)
+                                    {
+                                       // @FieldValueTree(value)
+                                    }
+                                    break;
+                            }
+                        </li>
+                    }
+                </ul>
+            </td>
+            <td>
+                @Html.ActionLink("Edit", "Update", new { Controller = "Item", Action = "Item", Id = item.ItemId })
+
+                @using (Html.BeginForm(
+                    "Delete", 
+                    "Item", 
+                    new { itemId = item.ItemId }, 
+                    FormMethod.Post)
+                ) {
+                    @Html.HttpMethodOverride(HttpVerbs.Delete)
+                    <input type="submit" value="Delete" />
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+@Html.Partial("AuthInfoSection",Model)
